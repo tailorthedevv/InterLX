@@ -1,0 +1,792 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>InterLX - Next Gen Lighting Console</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&family=Space+Grotesk:wght@700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #030305;
+            --surface-color: rgba(20, 20, 25, 0.7);
+            --border-color: rgba(255, 255, 255, 0.1);
+            --primary-accent: #7c3aed; /* Vibrant Purple */
+            --secondary-accent: #06b6d4; /* Cyan */
+            --tertiary-accent: #ff00aa; /* Magenta */
+            --text-main: #ffffff;
+            --text-muted: #9ca3af;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Outfit', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            overflow-x: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Loading Screen */
+        #loader {
+            position: fixed;
+            inset: 0;
+            background: var(--bg-color);
+            z-index: 9999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            transition: opacity 1s ease;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 3px solid var(--border-color);
+            border-top-color: var(--text-main);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 20px;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+        /* Typography */
+        h1, h2, h3 { font-family: 'Space Grotesk', sans-serif; }
+        h2 { font-size: 3.5rem; margin-bottom: 1rem; line-height: 1.2; letter-spacing: -1px; }
+        h3 { font-size: 1.5rem; margin-bottom: 0.5rem; color: var(--text-main); }
+        p { color: var(--text-muted); line-height: 1.7; font-size: 1.1rem; }
+
+        /* Navbar */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            padding: 20px 5%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+            background: linear-gradient(to bottom, rgba(3,3,5,0.9), transparent);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid rgba(255,255,255,0.03);
+        }
+        .logo { font-size: 1.8rem; font-weight: 800; letter-spacing: 2px; text-shadow: 0 0 10px rgba(255,255,255,0.2); }
+        .logo span { color: var(--secondary-accent); }
+        .nav-links a { color: var(--text-main); text-decoration: none; margin-left: 2.5rem; font-size: 0.95rem; font-weight: 600; transition: color 0.3s; }
+        .nav-links a:hover { color: var(--secondary-accent); }
+        .btn {
+            background: linear-gradient(45deg, var(--primary-accent), var(--secondary-accent));
+            padding: 12px 28px;
+            border-radius: 30px;
+            color: white;
+            text-decoration: none;
+            font-weight: 600;
+            transition: transform 0.3s, box-shadow 0.3s;
+            border: none;
+            cursor: pointer;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(6, 182, 212, 0.4);
+        }
+
+        /* Hero Section */
+        #hero {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+            overflow: hidden;
+            background: #000;
+        }
+        #webgl-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 1;
+        }
+        .scroll-indicator {
+            position: absolute;
+            bottom: 40px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0.8;
+            animation: bounce 2.5s infinite;
+        }
+        .scroll-indicator span { font-size: 0.8rem; letter-spacing: 3px; margin-bottom: 12px; text-transform: uppercase; font-weight: 600; color: #ccc;}
+        .mouse { width: 26px; height: 42px; border: 2px solid rgba(255,255,255,0.6); border-radius: 13px; position: relative; }
+        .wheel { width: 4px; height: 8px; background: white; border-radius: 2px; position: absolute; top: 8px; left: 50%; transform: translateX(-50%); animation: scroll 1.5s infinite; }
+        
+        @keyframes bounce { 0%, 100% { transform: translate(-50%, 0); } 50% { transform: translate(-50%, -10px); } }
+        @keyframes scroll { 0% { opacity: 1; transform: translate(-50%, 0); } 100% { opacity: 0; transform: translate(-50%, 15px); } }
+
+        /* Content Sections (React-like Scroll Animations) */
+        main {
+            position: relative;
+            z-index: 2;
+            background: var(--bg-color);
+        }
+        
+        section {
+            padding: 8rem 5%;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 1200px;
+            width: 100%;
+            margin: 0 auto;
+        }
+
+        /* Scroll Reveal Utility Classes */
+        .reveal {
+            opacity: 0;
+            transform: translateY(60px) scale(0.98);
+            transition: opacity 1s cubic-bezier(0.16, 1, 0.3, 1), transform 1s cubic-bezier(0.16, 1, 0.3, 1);
+            will-change: opacity, transform;
+        }
+        .reveal.active {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+        .delay-1 { transition-delay: 0.2s; }
+        .delay-2 { transition-delay: 0.4s; }
+
+        /* Feature Split Layout */
+        .split-layout {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 5rem;
+            align-items: center;
+        }
+        .glow-box {
+            position: relative;
+            aspect-ratio: 16/10;
+            background: var(--surface-color);
+            border-radius: 24px;
+            border: 1px solid var(--border-color);
+            backdrop-filter: blur(20px);
+            overflow: hidden;
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.8);
+        }
+        .glow-box::before {
+            content: '';
+            position: absolute;
+            top: -50%; left: -50%;
+            width: 200%; height: 200%;
+            background: conic-gradient(transparent, var(--tertiary-accent), transparent 30%);
+            animation: rotateGlow 6s linear infinite;
+            opacity: 0.3;
+        }
+        .glow-box::after {
+            content: '';
+            position: absolute;
+            inset: 2px;
+            background: #08080c;
+            border-radius: 22px;
+            z-index: 1;
+        }
+        .glow-content {
+            position: relative;
+            z-index: 2;
+            padding: 2.5rem;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .code-block {
+            font-family: 'Courier New', Courier, monospace;
+            color: var(--secondary-accent);
+            opacity: 0.8;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }
+        @keyframes rotateGlow { 100% { transform: rotate(360deg); } }
+
+        /* Grid Layout */
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+            gap: 2.5rem;
+            margin-top: 5rem;
+        }
+        .card {
+            background: var(--surface-color);
+            border: 1px solid var(--border-color);
+            border-radius: 20px;
+            padding: 3rem 2.5rem;
+            backdrop-filter: blur(10px);
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0; height: 2px;
+            background: linear-gradient(90deg, transparent, var(--secondary-accent), transparent);
+            opacity: 0;
+            transition: opacity 0.4s;
+        }
+        .card:hover {
+            transform: translateY(-12px);
+            border-color: rgba(6, 182, 212, 0.4);
+            box-shadow: 0 20px 40px rgba(6, 182, 212, 0.15);
+        }
+        .card:hover::before { opacity: 1; }
+        
+        .card-icon {
+            width: 56px;
+            height: 56px;
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 2rem;
+            color: var(--secondary-accent);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .card-icon svg { width: 28px; height: 28px; }
+
+        /* Background Effects */
+        .bg-gradient-1 {
+            position: absolute;
+            top: 15%; left: -15%;
+            width: 60vw; height: 60vw;
+            background: radial-gradient(circle, rgba(124,58,237,0.06) 0%, transparent 60%);
+            z-index: 0; pointer-events: none;
+        }
+        .bg-gradient-2 {
+            position: absolute;
+            bottom: 5%; right: -15%;
+            width: 50vw; height: 50vw;
+            background: radial-gradient(circle, rgba(6,182,212,0.05) 0%, transparent 60%);
+            z-index: 0; pointer-events: none;
+        }
+
+        /* CTA Section */
+        .cta-section {
+            text-align: center;
+            background: linear-gradient(to top, rgba(6,182,212,0.08), transparent);
+        }
+
+        @media (max-width: 968px) {
+            h2 { font-size: 2.5rem; }
+            .split-layout { grid-template-columns: 1fr; gap: 3rem; }
+            .nav-links { display: none; }
+        }
+    </style>
+
+    <!-- Import Map for Three.js -->
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+    </script>
+</head>
+<body>
+
+    <!-- Loading Overlay -->
+    <div id="loader">
+        <div class="spinner"></div>
+        <p style="letter-spacing: 4px; font-weight: 600; font-size: 0.95rem; color: var(--text-main);">INITIALIZING INTERLX...</p>
+    </div>
+
+    <!-- Navigation -->
+    <nav>
+        <div class="logo">Inter<span>LX</span></div>
+        <div class="nav-links">
+            <a href="#revolution">Features</a>
+            <a href="#scale">Ecosystem</a>
+            <a href="#tech">Tech Specs</a>
+        </div>
+        <a href="#demo" class="btn">Request Demo</a>
+    </nav>
+
+    <!-- Hero Section -->
+    <section id="hero">
+        <div id="webgl-container"></div>
+        <div class="scroll-indicator">
+            <span>Scroll</span>
+            <div class="mouse">
+                <div class="wheel"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Content -->
+    <main>
+        <div class="bg-gradient-1"></div>
+        <div class="bg-gradient-2"></div>
+
+        <!-- Section 1: Introduction -->
+        <section id="revolution">
+            <div class="container split-layout">
+                <div class="reveal">
+                    <h3 style="text-transform: uppercase; letter-spacing: 3px; font-size: 0.9rem; font-weight: 800; color: var(--primary-accent);">The Revolution</h3>
+                    <h2>Redefining Multi-User Control</h2>
+                    <p style="margin-bottom: 2rem;">Gone are the days of single-operator bottlenecks. InterLX introduces true real-time synchronization across massive networks. Let your lead programmer handle the moving heads while the VJ instantly integrates laser control—all on the same showfile, seamlessly.</p>
+                    <ul style="list-style: none; display: grid; gap: 1.2rem;">
+                        <li style="display: flex; align-items: center; gap: 15px; font-size: 1.1rem;">
+                            <span style="color: var(--tertiary-accent); font-size: 1.5rem;">✦</span> Zero-latency WebSockets sync
+                        </li>
+                        <li style="display: flex; align-items: center; gap: 15px; font-size: 1.1rem;">
+                            <span style="color: var(--tertiary-accent); font-size: 1.5rem;">✦</span> Intelligent conflict resolution
+                        </li>
+                        <li style="display: flex; align-items: center; gap: 15px; font-size: 1.1rem;">
+                            <span style="color: var(--tertiary-accent); font-size: 1.5rem;">✦</span> Unlimited remote clients
+                        </li>
+                    </ul>
+                </div>
+                <div class="reveal delay-1">
+                    <div class="glow-box">
+                        <div class="glow-content">
+                            <div class="code-block">
+                                > CONSOLE 1 CONNECTED [192.168.1.10]<br>
+                                > SYNCING UNIVERSE DATA... OK<br>
+                                > CONSOLE 2 CONNECTED [192.168.1.11]<br>
+                                > ALLOCATING FIXTURE GROUPS [LASERS] -> USER_2<br>
+                                > RUNNING SHOWFILE 'FESTIVAL_MAIN_STAGE.ilx'<br>
+                                > MULTI-THREADING ENGINE: ACTIVE
+                            </div>
+                            <div style="display: flex; justify-content: space-between; align-items: flex-end;">
+                                <div style="font-family: 'Space Grotesk'; font-size: 3rem; font-weight: bold; color: white;">60 <span style="font-size: 1.2rem; color: var(--text-muted);">FPS</span></div>
+                                <div style="font-size: 0.9rem; color: var(--secondary-accent); text-align: right; text-transform: uppercase; letter-spacing: 1px;">Real-time<br>Telemetry</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 2: Features Grid -->
+        <section id="scale">
+            <div class="container">
+                <div class="reveal" style="text-align: center; max-width: 700px; margin: 0 auto;">
+                    <h3 style="text-transform: uppercase; letter-spacing: 3px; font-size: 0.9rem; font-weight: 800; color: var(--primary-accent);">Built for Scale</h3>
+                    <h2>Festival-Ready Infrastructure</h2>
+                    <p>Designed for the largest productions on earth, InterLX calculates massive DMX outputs without breaking a sweat, utilizing modern GPU acceleration to process complex FX.</p>
+                </div>
+                
+                <div class="features-grid">
+                    <div class="card reveal delay-1">
+                        <div class="card-icon">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        </div>
+                        <h3 style="color: white; font-size: 1.4rem;">Generative Busking AI</h3>
+                        <p style="font-size: 1rem;">Harness advanced algorithms to generate base effects and chases dynamically based on audio stems, freeing operators to focus on perfect timing.</p>
+                    </div>
+                    
+                    <div class="card reveal delay-2">
+                        <div class="card-icon">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 01-9 9m9-9a9 9 0 00-9-9m9 9H3m9 9a9 9 0 01-9-9m9 9c1.657 0 3-4.03 3-9s-1.343-9-3-9m0 18c-1.657 0-3-4.03-3-9s1.343-9 3-9m-9 9a9 9 0 019-9"></path></svg>
+                        </div>
+                        <h3 style="color: white; font-size: 1.4rem;">3D Pre-Visualization</h3>
+                        <p style="font-size: 1rem;">Built-in photorealistic rendering engine. Program your entire show in a virtual environment before a single truss is flown.</p>
+                    </div>
+
+                    <div class="card reveal delay-1">
+                        <div class="card-icon">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"></path></svg>
+                        </div>
+                        <h3 style="color: white; font-size: 1.4rem;">Unlimited Universes</h3>
+                        <p style="font-size: 1rem;">Say goodbye to hardware parameter limits. Output tens of thousands of Art-Net or sACN universes seamlessly via processing nodes.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Section 3: CTA -->
+        <section id="demo" class="cta-section">
+            <div class="container reveal">
+                <h2 style="font-size: 4.5rem;">Ready to light up the world?</h2>
+                <p style="max-width: 650px; margin: 0 auto 3.5rem auto; font-size: 1.25rem;">Join the exclusive beta program and be among the first to experience the future of professional lighting control.</p>
+                <a href="#" class="btn" style="font-size: 1.2rem; padding: 18px 45px; letter-spacing: 1px;">Join the Waitlist</a>
+            </div>
+        </section>
+        
+        <footer style="padding: 2.5rem 5%; text-align: center; border-top: 1px solid var(--border-color); color: var(--text-muted); font-size: 0.95rem;">
+            &copy; 2026 InterLX Technologies. The future of illumination.
+        </footer>
+    </main>
+
+    <!-- Scroll Animation Logic -->
+    <script>
+        document.addEventListener("DOMContentLoaded", () => {
+            const reveals = document.querySelectorAll('.reveal');
+            
+            const revealOptions = {
+                threshold: 0.15,
+                rootMargin: "0px 0px -50px 0px"
+            };
+
+            const revealOnScroll = new IntersectionObserver(function(entries, observer) {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('active');
+                        observer.unobserve(entry.target);
+                    }
+                });
+            }, revealOptions);
+
+            reveals.forEach(reveal => {
+                revealOnScroll.observe(reveal);
+            });
+        });
+    </script>
+
+    <!-- Three.js Visuals Logic -->
+    <script type="module">
+        import * as THREE from 'three';
+        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+
+        const loader = document.getElementById('loader');
+        
+        // --- SCENE SETUP ---
+        const container = document.getElementById('webgl-container');
+        const scene = new THREE.Scene();
+        scene.fog = new THREE.FogExp2(0x030305, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(45, window.innerWidth / window.innerHeight, 0.1, 200);
+        camera.position.set(0, 0, 32);
+
+        const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.toneMapping = THREE.ACESFilmicToneMapping;
+        renderer.toneMappingExposure = 1.2;
+        container.appendChild(renderer.domElement);
+
+
+        // --- LIGHTING (Silvery Glow) ---
+        // Hemisphere light creates a beautiful gradient reflection on metallic surfaces
+        const hemiLight = new THREE.HemisphereLight(0xffffff, 0x111122, 1.5);
+        scene.add(hemiLight);
+
+        const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        dirLight.position.set(10, 15, 10);
+        scene.add(dirLight);
+        
+        // Dynamic PointLights attached to particle waves
+        const light1 = new THREE.PointLight(0x06b6d4, 150, 25); // Cyan
+        const light2 = new THREE.PointLight(0x7c3aed, 150, 25); // Purple
+        const light3 = new THREE.PointLight(0xff00aa, 150, 25); // Magenta
+        scene.add(light1, light2, light3);
+
+        
+        // --- PARTICLE AURA LINES (Distinguished Ribbons) ---
+        // Shader to handle wave motion and bright pulse explosion
+        const particleVertexShader = `
+            uniform float time;
+            uniform float pulseX;
+            attribute float aRandom;
+            varying float vIntensity;
+            
+            void main() {
+                vec3 pos = position;
+                
+                // Base undulating wave motion
+                pos.y += sin(pos.x * 0.12 + time * 1.5) * 3.0;
+                pos.y += sin(pos.x * 0.25 - time * 0.8) * 1.2;
+                
+                // Calculate distance to the "pulse" traversing the line
+                float dist = abs(pos.x - pulseX);
+                float pulseEffect = smoothstep(6.0, 0.0, dist);
+                
+                // Particles expand/explode slightly when the pulse intersects them
+                pos.y += (aRandom - 0.5) * pulseEffect * 6.0;
+                pos.z += (aRandom - 0.5) * pulseEffect * 6.0;
+                
+                vIntensity = pulseEffect;
+                
+                vec4 mvPosition = modelViewMatrix * vec4(pos, 1.0);
+                
+                // Size depends on pulse and perspective
+                gl_PointSize = (1.5 + pulseEffect * 4.0) * (30.0 / -mvPosition.z);
+                gl_Position = projectionMatrix * mvPosition;
+            }
+        `;
+        
+        const particleFragmentShader = `
+            uniform vec3 baseColor;
+            varying float vIntensity;
+            
+            void main() {
+                // Circular particle shape
+                float dist = length(gl_PointCoord - vec2(0.5));
+                if (dist > 0.5) discard;
+                
+                float alpha = (0.5 - dist) * 2.0;
+                
+                // Light up brightly at the pulse intersection
+                vec3 finalColor = mix(baseColor * 0.4, baseColor * 3.0, vIntensity);
+                
+                gl_FragColor = vec4(finalColor, alpha);
+            }
+        `;
+
+        function createRibbon(colorHex, zOffset, count = 8000) {
+            const geometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(count * 3);
+            const randoms = new Float32Array(count);
+            
+            for(let i = 0; i < count; i++) {
+                // Distribute heavily along X axis (-60 to 60)
+                let x = (i / count) * 120 - 60;
+                positions[i*3] = x;
+                positions[i*3+1] = (Math.random() - 0.5) * 1.0; // slight initial vertical spread
+                positions[i*3+2] = zOffset + (Math.random() - 0.5) * 1.5; // thickness
+                randoms[i] = Math.random();
+            }
+            
+            geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+            geometry.setAttribute('aRandom', new THREE.BufferAttribute(randoms, 1));
+            
+            const material = new THREE.ShaderMaterial({
+                uniforms: {
+                    time: { value: 0 },
+                    pulseX: { value: 0 },
+                    baseColor: { value: new THREE.Color(colorHex) }
+                },
+                vertexShader: particleVertexShader,
+                fragmentShader: particleFragmentShader,
+                transparent: true,
+                blending: THREE.AdditiveBlending,
+                depthWrite: false
+            });
+            
+            return new THREE.Points(geometry, material);
+        }
+
+        const ribbon1 = createRibbon(0x06b6d4, -3); // Cyan, behind
+        const ribbon2 = createRibbon(0x7c3aed, 2);  // Purple, in front
+        const ribbon3 = createRibbon(0xff00aa, -6); // Magenta, far behind
+        scene.add(ribbon1, ribbon2, ribbon3);
+
+
+        // --- 3D TEXT SETUP ---
+        const fontLoader = new FontLoader();
+        let mainTextMesh, subtitleTextMesh;
+        
+        // Custom uniforms for Text Material to change color at intersections
+        const textUniforms = {
+            wave1X: { value: 0 },
+            wave2X: { value: 0 },
+            wave3X: { value: 0 }
+        };
+
+        fontLoader.load('https://unpkg.com/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json', function (font) {
+            
+            // Base Silvery Metallic Material
+            const textMat = new THREE.MeshStandardMaterial({ 
+                color: 0xe0e5ff, // Bright cool silver
+                metalness: 0.9, 
+                roughness: 0.15,
+                emissive: 0x111111 // Slight base glow so it's never black
+            });
+
+            // MAGIC: Hook into the built-in shader to add intersection color changing
+            textMat.onBeforeCompile = (shader) => {
+                shader.uniforms.wave1X = textUniforms.wave1X;
+                shader.uniforms.wave2X = textUniforms.wave2X;
+                shader.uniforms.wave3X = textUniforms.wave3X;
+                
+                // Get world position in vertex shader
+                shader.vertexShader = `
+                    varying vec3 vWorldPos;
+                    ${shader.vertexShader}
+                `.replace(
+                    `#include <worldpos_vertex>`,
+                    `
+                    #include <worldpos_vertex>
+                    vWorldPos = (modelMatrix * vec4(position, 1.0)).xyz;
+                    `
+                );
+                
+                // Alter color in fragment shader based on world position vs waves
+                shader.fragmentShader = `
+                    uniform float wave1X;
+                    uniform float wave2X;
+                    uniform float wave3X;
+                    varying vec3 vWorldPos;
+                    ${shader.fragmentShader}
+                `.replace(
+                    `#include <emissivemap_fragment>`,
+                    `
+                    #include <emissivemap_fragment>
+                    
+                    // Distances from this pixel to the passing energy waves
+                    float d1 = abs(vWorldPos.x - wave1X);
+                    float d2 = abs(vWorldPos.x - wave2X);
+                    float d3 = abs(vWorldPos.x - wave3X);
+                    
+                    // Create sharp intersection glow
+                    float int1 = smoothstep(4.0, 0.0, d1);
+                    float int2 = smoothstep(4.0, 0.0, d2);
+                    float int3 = smoothstep(4.0, 0.0, d3);
+                    
+                    vec3 c1 = vec3(0.02, 0.71, 0.83); // Cyan
+                    vec3 c2 = vec3(0.48, 0.22, 0.92); // Purple
+                    vec3 c3 = vec3(1.0, 0.0, 0.66);   // Magenta
+                    
+                    // Add glowing emissive light that looks like the material is superheated
+                    vec3 intersectionGlow = (c1 * int1 + c2 * int2 + c3 * int3) * 2.5;
+                    totalEmissiveRadiance += intersectionGlow;
+                    
+                    // Slightly whiten the base color exactly at intersection
+                    diffuseColor.rgb = mix(diffuseColor.rgb, vec3(1.0), (int1 + int2 + int3) * 0.6);
+                    `
+                );
+            };
+
+            // 1. MAIN TEXT "InterLX"
+            const mainGeom = new TextGeometry('InterLX', {
+                font: font, size: 6.5, height: 1.5,
+                curveSegments: 16, bevelEnabled: true,
+                bevelThickness: 0.2, bevelSize: 0.1, bevelOffset: 0, bevelSegments: 6
+            });
+            
+            // Centering
+            mainGeom.computeBoundingBox();
+            const mainCenterOffset = -0.5 * (mainGeom.boundingBox.max.x - mainGeom.boundingBox.min.x);
+            mainGeom.translate(mainCenterOffset, 0, 0);
+            
+            mainTextMesh = new THREE.Mesh(mainGeom, textMat);
+            // Lowered position per request
+            mainTextMesh.position.y = 0.5;
+            scene.add(mainTextMesh);
+
+
+            // 2. SUBTITLE TEXT
+            const subGeom = new TextGeometry('The next generation console\nfor multi-user access', {
+                font: font, size: 1.0, height: 0.2,
+                curveSegments: 8, bevelEnabled: true,
+                bevelThickness: 0.03, bevelSize: 0.02, bevelSegments: 3
+            });
+            
+            subGeom.computeBoundingBox();
+            const subCenterOffset = -0.5 * (subGeom.boundingBox.max.x - subGeom.boundingBox.min.x);
+            subGeom.translate(subCenterOffset, 0, 0);
+
+            const subMat = new THREE.MeshStandardMaterial({
+                color: 0xdddddd, metalness: 0.7, roughness: 0.3, emissive: 0x111111
+            });
+            
+            // Apply similar effect to subtitle for consistency
+            subMat.onBeforeCompile = textMat.onBeforeCompile;
+
+            subtitleTextMesh = new THREE.Mesh(subGeom, subMat);
+            // Lowered to prevent overlap
+            subtitleTextMesh.position.y = -3.5; 
+            scene.add(subtitleTextMesh);
+
+            // Hide loader once ready
+            setTimeout(() => {
+                loader.style.opacity = '0';
+                setTimeout(() => loader.style.display = 'none', 1000);
+            }, 500);
+        });
+
+
+        // --- ANIMATION LOOP ---
+        const clock = new THREE.Clock();
+
+        // Helper to calculate wave Y at a given X so lights perfectly track the particle ribbons
+        function getWaveY(x, time) {
+            return Math.sin(x * 0.12 + time * 1.5) * 3.0 + Math.sin(x * 0.25 - time * 0.8) * 1.2;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = clock.getElapsedTime();
+
+            // Calculate pulse positions looping across the screen
+            // Wave 1: left to right
+            const w1x = ((time * 18) % 100) - 50; 
+            // Wave 2: right to left
+            const w2x = 50 - ((time * 14 + 20) % 100); 
+            // Wave 3: left to right
+            const w3x = ((time * 22 + 40) % 100) - 50;
+
+            // Update custom text shader uniforms
+            textUniforms.wave1X.value = w1x;
+            textUniforms.wave2X.value = w2x;
+            textUniforms.wave3X.value = w3x;
+
+            // Update particle ribbons
+            ribbon1.material.uniforms.time.value = time;
+            ribbon1.material.uniforms.pulseX.value = w1x;
+
+            ribbon2.material.uniforms.time.value = time;
+            ribbon2.material.uniforms.pulseX.value = w2x;
+
+            ribbon3.material.uniforms.time.value = time;
+            ribbon3.material.uniforms.pulseX.value = w3x;
+
+            // Update point lights to follow the pulses physically
+            // This lights up the metallic text precisely where the particles hit it
+            light1.position.set(w1x, getWaveY(w1x, time), -1);
+            light2.position.set(w2x, getWaveY(w2x, time), 3); // Front wave
+            light3.position.set(w3x, getWaveY(w3x, time), -4);
+
+
+            // Gentle ambient movement for texts
+            if (mainTextMesh) {
+                // Gentle drifting position
+                mainTextMesh.position.y = 0.5 + Math.sin(time * 0.8) * 0.4;
+                mainTextMesh.rotation.x = Math.sin(time * 0.7) * 0.05;
+                mainTextMesh.rotation.y = Math.cos(time * 0.5) * 0.05;
+                
+                // Slow breathing scale
+                const scale = 1 + Math.sin(time * 1.5) * 0.015;
+                mainTextMesh.scale.set(scale, scale, scale);
+            }
+
+            if (subtitleTextMesh) {
+                // Inverse drifting
+                subtitleTextMesh.position.y = -3.5 + Math.cos(time * 0.9) * 0.3;
+                subtitleTextMesh.rotation.x = Math.cos(time * 0.6) * 0.04;
+                subtitleTextMesh.rotation.y = Math.sin(time * 0.4) * 0.04;
+            }
+
+            // Subtle camera sway
+            camera.position.x = Math.sin(time * 0.2) * 1.5;
+            camera.position.y = Math.cos(time * 0.25) * 1.0;
+            camera.lookAt(0, 0, 0);
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // --- RESIZE HANDLER ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+    </script>
+</body>
+</html>
